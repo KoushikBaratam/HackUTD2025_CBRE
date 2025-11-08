@@ -30,7 +30,7 @@ export default App;
 */
 import { useEffect, useState } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import FrontPage from "./components/FrontPage";
+import Home from "./components/Home";
 
 function App() {
   const [message, setMessage] = useState("");
@@ -45,7 +45,7 @@ function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<FrontPage />} />
+        <Route path="/" element={<Home />} />
       </Routes>
     </Router>
   );
