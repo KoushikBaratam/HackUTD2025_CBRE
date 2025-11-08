@@ -11,16 +11,16 @@ function App() {
   }, []);
 
   return (
-    // <div style={{ textAlign: "center", marginTop: "3rem" }}>
-    //   <h1>Flask + React App</h1>
-    //   <p>{message}</p>
-    // </div>
-    <Router>
-      <Navbar />
-      <Routes>
-        <Route path="/login" element={<Login />} />
-      </Routes>
-    </Router>
+    <div style={{ textAlign: "center", marginTop: "3rem" }}>
+      <h1>Flask + React App</h1>
+      <p>{message}</p>
+    </div>
+    // <Router>
+    //   <Navbar />
+    //   <Routes>
+    //     <Route path="/login" element={<Login />} />
+    //   </Routes>
+    // </Router>
   );
 }
 
