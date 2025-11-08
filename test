@@ -1,1 +1,14 @@
 HACKUTD2025-CBRE
+
+Future ReadMe:
+
+To run backend:
+
+- cd to backend
+- venv\Scripts\activate
+- python app.py
+
+To run frontend:
+
+- cd to frontend
+- npm start
