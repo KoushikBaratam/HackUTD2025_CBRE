@@ -1,12 +1,14 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
+import nemotron
 
 app = Flask(__name__)
 CORS(app, origins="http://localhost:3000")  # allows requests from your React frontend
 
 @app.route('/api/hello')
 def hello():
-    return jsonify(message="Hello from Flask! This is Koushik!")
+    response = nemotron.nemotron()
+    return jsonify(message=response)
 
 @app.route('/api/data', methods=['POST'])
 def get_data():
