@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Loading from './Loading';
 
 const FileUpload = () => {
@@ -7,6 +8,7 @@ const FileUpload = () => {
   const [uploadStatus, setUploadStatus] = useState({});
   const [isProcessing, setIsProcessing] = useState(false);
   const fileInputRef = useRef(null);
+  const navigate = useNavigate();
 
   const handleDragEnter = (e) => {
     e.preventDefault();
@@ -72,6 +74,14 @@ const FileUpload = () => {
     });
   };
 
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  };
+
   // API call function for uploading files
   const uploadFileToAPI = async (file) => {
     // Verify file exists and is a valid File object
@@ -79,11 +89,24 @@ const FileUpload = () => {
       throw new Error('Invalid file object');
     }
 
-    // TODO: Update API endpoint and add any required headers/auth
+    console.log('Uploading file:', file.name, 'Size:', file.size, 'Type:', file.type);
+
+    // TODO: Replace with actual API call when backend is ready
+    // For now, simulate API call with delay
+    await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate 2 second upload per file
+    
+    // Simulate successful response
+    return {
+      success: true,
+      filename: file.name,
+      fileId: Date.now().toString(),
+      message: 'File uploaded successfully'
+    };
+
+    // Actual API call code (uncomment when backend is ready):
+    /*
     const formData = new FormData();
     formData.append('file', file, file.name); // Include filename explicitly
-
-    console.log('Uploading file:', file.name, 'Size:', file.size, 'Type:', file.type);
 
     const response = await fetch('/api/upload', {
       method: 'POST',
@@ -101,6 +124,32 @@ const FileUpload = () => {
 
     const data = await response.json();
     return data;
+    */
+  };
+
+  const saveFileToStorage = (fileObj, result) => {
+    // Get existing files from localStorage
+    const existingFiles = JSON.parse(localStorage.getItem('uploadedFiles') || '[]');
+    
+    // Create file data object
+    const fileData = {
+      id: Date.now() + Math.random(), // Unique ID
+      name: fileObj.name,
+      uploadedAt: new Date().toISOString(),
+      size: fileObj.size,
+      status: 'processed',
+      // TODO: Replace with actual summary from API response
+      summary: `This document has been successfully uploaded and processed. File details: ${fileObj.name} (${formatFileSize(fileObj.size)}). The document is now ready for querying and analysis.`,
+      fileId: result.fileId || Date.now().toString(),
+    };
+    
+    // Add to existing files
+    existingFiles.push(fileData);
+    
+    // Save back to localStorage
+    localStorage.setItem('uploadedFiles', JSON.stringify(existingFiles));
+    
+    return fileData;
   };
 
   const handleUploadAll = async () => {
@@ -116,28 +165,42 @@ const FileUpload = () => {
         : f
     ));
     
-    // Upload all files sequentially
-    for (const fileObj of pendingFiles) {
-      try {
-        // Call the API to upload the file
-        const result = await uploadFileToAPI(fileObj.file);
-        
-        // Handle successful upload
-        console.log('File uploaded successfully:', fileObj.name, result);
-        
-        setFiles(prev => prev.map(f => 
-          f.id === fileObj.id ? { ...f, status: 'success' } : f
-        ));
-      } catch (error) {
-        console.error('Upload error for', fileObj.name, ':', error);
-        
-        setFiles(prev => prev.map(f => 
-          f.id === fileObj.id ? { ...f, status: 'error' } : f
-        ));
+    try {
+      // Upload all files sequentially
+      for (const fileObj of pendingFiles) {
+        try {
+          // Call the API to upload the file
+          // TODO: Replace with actual API call when backend is ready
+          const result = await uploadFileToAPI(fileObj.file);
+          
+          // Handle successful upload
+          console.log('File uploaded successfully:', fileObj.name, result);
+          
+          // Save file data to localStorage
+          saveFileToStorage(fileObj, result);
+          
+          setFiles(prev => prev.map(f => 
+            f.id === fileObj.id ? { ...f, status: 'success' } : f
+          ));
+        } catch (error) {
+          console.error('Upload error for', fileObj.name, ':', error);
+          
+          setFiles(prev => prev.map(f => 
+            f.id === fileObj.id ? { ...f, status: 'error' } : f
+          ));
+          // If any file fails, we still continue with others
+        }
       }
+      
+      // After all files are processed, navigate to home
+      // Small delay to show success state briefly
+      await new Promise(resolve => setTimeout(resolve, 500));
+      navigate('/home');
+    } catch (error) {
+      console.error('Upload process error:', error);
+      setIsProcessing(false);
+      // Don't navigate on error, let user see the error state
     }
-    
-    setIsProcessing(false);
   };
 
   // Show loading screen when processing
@@ -150,14 +213,6 @@ const FileUpload = () => {
       : 'Processing file...';
     return <Loading message={message} />;
   }
-
-  const formatFileSize = (bytes) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
-  };
 
   return (
     <div className="min-h-screen bg-cbre-gray-light py-12 px-4 sm:px-6 lg:px-8">
