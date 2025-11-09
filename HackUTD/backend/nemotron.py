@@ -27,5 +27,4 @@ def nemotron():
     # Convert literal "\n" to actual newlines
     lines = lines.replace("\\n", "\n")
     
-    # Split and return only the final line
     return lines
