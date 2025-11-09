@@ -6,11 +6,12 @@ const FilesList = () => {
   const [files, setFiles] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load files from localStorage on component mount
+  // Load files from sessionStorage on component mount
+  // sessionStorage automatically clears when the browser tab/window is closed
   useEffect(() => {
     const loadFiles = () => {
       setIsLoading(true);
-      const storedFiles = JSON.parse(localStorage.getItem('uploadedFiles') || '[]');
+      const storedFiles = JSON.parse(sessionStorage.getItem('uploadedFiles') || '[]');
       // Sort by upload date (newest first)
       const sortedFiles = storedFiles.sort((a, b) => 
         new Date(b.uploadedAt) - new Date(a.uploadedAt)
@@ -22,6 +23,8 @@ const FilesList = () => {
     loadFiles();
     
     // Listen for storage events to update when files are added from other tabs
+    // Note: storage event only fires for localStorage, not sessionStorage across tabs
+    // But we can listen for it in case we want cross-tab updates within same session
     window.addEventListener('storage', loadFiles);
     
     return () => {

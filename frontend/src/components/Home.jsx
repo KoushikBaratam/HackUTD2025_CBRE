@@ -20,10 +20,12 @@ const Home = () => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
 
+    const text = input.trim();
+
     const userMessage = {
       id: Date.now(),
       type: 'user',
-      content: input.trim(),
+      content: text,
       timestamp: new Date(),
     };
 
@@ -31,20 +33,51 @@ const Home = () => {
     setInput('');
     setIsLoading(true);
 
-    // TODO: Replace with actual API call
+    // --- Real API call to Flask /api/query ---
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
+      const res = await fetch('http://localhost:5000/api/query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: text }),
+        signal: controller.signal,
+      });
+
+      if (!res.ok) {
+        let errMsg = `Request failed (${res.status})`;
+        try {
+          const err = await res.json();
+          if (err?.message) errMsg = err.message;
+        } catch {
+          /* ignore JSON parse errors */
+        }
+        throw new Error(errMsg);
+      }
+
+      // Expected backend shape per your app.py:
+      // {
+      //   success: true,
+      //   message: "Query processed successfully.",
+      //   query: "<echoed user query>",
+      //   response: "<model's text>",
+      //   matched_folders: ["folderA", "folderB"]
+      // }
+      const data = await res.json();
+
       const aiMessage = {
         id: Date.now() + 1,
         type: 'ai',
-        content: 'This is a placeholder response. Connect to your backend API to get real answers about your uploaded documents.',
+        content: data?.response || 'No response generated.',
         timestamp: new Date(),
-        // Structured data will be added here when API is connected
-        structuredData: null,
+        structuredData: {
+          matchedFolders: data?.matched_folders || [],
+          serverMessage: data?.message || null,
+          queryEcho: data?.query || null,
+        },
         confidence: null,
-        evidence: null,
+        evidence: data?.matched_folders?.map(f => ({ type: 'folder', value: f })) || null,
       };
 
       setMessages(prev => [...prev, aiMessage]);
@@ -53,11 +86,15 @@ const Home = () => {
       const errorMessage = {
         id: Date.now() + 1,
         type: 'error',
-        content: 'Sorry, there was an error processing your request. Please try again.',
+        content:
+          error.name === 'AbortError'
+            ? 'The request timed out. Please try again.'
+            : `Sorry, there was an error: ${error.message}`,
         timestamp: new Date(),
       };
       setMessages(prev => [...prev, errorMessage]);
     } finally {
+      clearTimeout(timeoutId);
       setIsLoading(false);
     }
   };
@@ -251,4 +288,3 @@ const Home = () => {
 };
 
 export default Home;
-

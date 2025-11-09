@@ -136,8 +136,8 @@ const FileUpload = () => {
   };
 
   const saveFileToStorage = (fileObj, uploadResult, summaryResult) => {
-    // Get existing files from localStorage
-    const existingFiles = JSON.parse(localStorage.getItem('uploadedFiles') || '[]');
+    // Get existing files from sessionStorage (clears when tab/window closes)
+    const existingFiles = JSON.parse(sessionStorage.getItem('uploadedFiles') || '[]');
     
     // Extract fileId from upload result
     const fileId = uploadResult.fileId || uploadResult.id || Date.now().toString();
@@ -160,8 +160,8 @@ const FileUpload = () => {
     // Add to existing files
     existingFiles.push(fileData);
     
-    // Save back to localStorage
-    localStorage.setItem('uploadedFiles', JSON.stringify(existingFiles));
+    // Save back to sessionStorage (clears when tab/window closes)
+    sessionStorage.setItem('uploadedFiles', JSON.stringify(existingFiles));
     
     return fileData;
   };
