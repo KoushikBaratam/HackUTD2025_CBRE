@@ -24,8 +24,12 @@ const Login = () => {
       <div className="max-w-md w-full space-y-8">
         {/* Logo and Title */}
         <div className="text-center">
-          <div className="mx-auto h-16 w-16 bg-cbre-green rounded-lg flex items-center justify-center mb-4">
-            <span className="text-white text-2xl font-bold">CC</span>
+          <div className="mx-auto h-16 w-16 bg-white rounded-lg flex items-center justify-center mb-4 shadow-sm border border-gray-200 overflow-hidden">
+            <img 
+              src="/logo.png" 
+              alt="ClauseChain Logo" 
+              className="h-full w-full object-contain p-2"
+            />
           </div>
           <h2 className="text-3xl font-bold text-gray-900">ClauseChain</h2>
           <p className="mt-2 text-sm text-gray-600">

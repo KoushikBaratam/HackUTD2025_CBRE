@@ -8,6 +8,44 @@ const Home = () => {
   const messagesEndRef = useRef(null);
   const navigate = useNavigate();
 
+  // Load messages from sessionStorage on component mount
+  useEffect(() => {
+    const loadMessages = () => {
+      try {
+        const storedMessages = JSON.parse(sessionStorage.getItem('chatMessages') || '[]');
+        // Convert timestamp strings back to Date objects if needed
+        const messagesWithDates = storedMessages.map(msg => ({
+          ...msg,
+          timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date()
+        }));
+        setMessages(messagesWithDates);
+      } catch (error) {
+        console.error('Error loading messages from sessionStorage:', error);
+        setMessages([]);
+      }
+    };
+
+    loadMessages();
+  }, []);
+
+  // Save messages to sessionStorage whenever messages change
+  useEffect(() => {
+    if (messages.length > 0) {
+      try {
+        // Convert Date objects to ISO strings for storage
+        const messagesToStore = messages.map(msg => ({
+          ...msg,
+          timestamp: msg.timestamp instanceof Date 
+            ? msg.timestamp.toISOString() 
+            : (msg.timestamp || new Date().toISOString())
+        }));
+        sessionStorage.setItem('chatMessages', JSON.stringify(messagesToStore));
+      } catch (error) {
+        console.error('Error saving messages to sessionStorage:', error);
+      }
+    }
+  }, [messages]);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -106,8 +144,12 @@ const Home = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="h-10 w-10 bg-cbre-green rounded-lg flex items-center justify-center">
-                <span className="text-white text-lg font-bold">CC</span>
+              <div className="h-10 w-10 bg-white rounded-lg flex items-center justify-center shadow-sm border border-gray-200 overflow-hidden">
+                <img 
+                  src="/logo.png" 
+                  alt="ClauseChain Logo" 
+                  className="h-full w-full object-contain p-1.5"
+                />
               </div>
               <div>
                 <h1 className="text-xl font-bold text-gray-900">ClauseChain</h1>

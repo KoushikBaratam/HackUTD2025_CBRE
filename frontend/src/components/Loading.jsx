@@ -3,8 +3,12 @@ const Loading = ({ message = "Processing files..." }) => {
     <div className="min-h-screen bg-cbre-gray-light flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full text-center">
         {/* Logo */}
-        <div className="mx-auto h-16 w-16 bg-cbre-green rounded-lg flex items-center justify-center mb-6">
-          <span className="text-white text-2xl font-bold">CC</span>
+        <div className="mx-auto h-16 w-16 bg-white rounded-lg flex items-center justify-center mb-6 shadow-sm border border-gray-200 overflow-hidden">
+          <img 
+            src="/logo.png" 
+            alt="ClauseChain Logo" 
+            className="h-full w-full object-contain p-2"
+          />
         </div>
 
         {/* Loading Spinner */}

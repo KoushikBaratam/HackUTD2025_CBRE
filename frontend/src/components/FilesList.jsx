@@ -58,8 +58,12 @@ const FilesList = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="h-10 w-10 bg-cbre-green rounded-lg flex items-center justify-center">
-                <span className="text-white text-lg font-bold">CC</span>
+              <div className="h-10 w-10 bg-white rounded-lg flex items-center justify-center shadow-sm border border-gray-200 overflow-hidden">
+                <img 
+                  src="/logo.png" 
+                  alt="ClauseChain Logo" 
+                  className="h-full w-full object-contain p-1.5"
+                />
               </div>
               <div>
                 <h1 className="text-xl font-bold text-gray-900">ClauseChain</h1>
@@ -87,11 +91,24 @@ const FilesList = () => {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Page Header */}
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">Uploaded Files</h2>
-          <p className="text-sm text-gray-600 mt-1">
-            View and manage your uploaded documents
-          </p>
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Uploaded Files</h2>
+            <p className="text-sm text-gray-600 mt-1">
+              View and manage your uploaded documents
+            </p>
+          </div>
+          {files.length > 0 && (
+            <button
+              onClick={() => {
+                // TODO: Implement export to doc functionality
+                console.log('Export to doc clicked');
+              }}
+              className="px-4 py-2 bg-cbre-green text-white rounded-lg hover:bg-cbre-green-light focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cbre-green transition-colors"
+            >
+              Export to Doc
+            </button>
+          )}
         </div>
 
         {/* Files List */}
@@ -178,14 +195,6 @@ const FilesList = () => {
                           </span>
                         </div>
                       </div>
-                    </div>
-                    <div className="flex items-center space-x-2 ml-4">
-                      <button className="px-3 py-1.5 text-sm text-cbre-green hover:bg-green-50 rounded-md border border-cbre-green transition-colors">
-                        View
-                      </button>
-                      <button className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 rounded-md border border-gray-300 transition-colors">
-                        Download
-                      </button>
                     </div>
                   </div>
                 </div>
