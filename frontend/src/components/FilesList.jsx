@@ -4,16 +4,19 @@ import { useNavigate } from 'react-router-dom';
 const FilesList = () => {
   const navigate = useNavigate();
   const [files, setFiles] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Load files from localStorage on component mount
   useEffect(() => {
     const loadFiles = () => {
+      setIsLoading(true);
       const storedFiles = JSON.parse(localStorage.getItem('uploadedFiles') || '[]');
       // Sort by upload date (newest first)
       const sortedFiles = storedFiles.sort((a, b) => 
         new Date(b.uploadedAt) - new Date(a.uploadedAt)
       );
       setFiles(sortedFiles);
+      setIsLoading(false);
     };
 
     loadFiles();
@@ -90,7 +93,14 @@ const FilesList = () => {
 
         {/* Files List */}
         <div className="space-y-4">
-          {files.length === 0 ? (
+          {isLoading ? (
+            <div className="bg-white rounded-lg shadow p-12 text-center">
+              <div className="flex justify-center mb-4">
+                <div className="w-12 h-12 border-4 border-cbre-gray-light border-t-cbre-green rounded-full animate-spin"></div>
+              </div>
+              <p className="text-sm text-gray-600">Loading files...</p>
+            </div>
+          ) : files.length === 0 ? (
             <div className="bg-white rounded-lg shadow p-12 text-center">
               <svg
                 className="mx-auto h-12 w-12 text-gray-400 mb-4"

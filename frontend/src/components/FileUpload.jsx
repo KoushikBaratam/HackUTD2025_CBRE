@@ -89,47 +89,62 @@ const FileUpload = () => {
       throw new Error('Invalid file object');
     }
 
+    const formData = new FormData();
+    formData.append('file', file, file.name);
+
     console.log('Uploading file:', file.name, 'Size:', file.size, 'Type:', file.type);
 
-    // TODO: Replace with actual API call when backend is ready
-    // For now, simulate API call with delay
-    await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate 2 second upload per file
-    
-    // Simulate successful response
-    return {
-      success: true,
-      filename: file.name,
-      fileId: Date.now().toString(),
-      message: 'File uploaded successfully'
-    };
-
-    // Actual API call code (uncomment when backend is ready):
-    /*
-    const formData = new FormData();
-    formData.append('file', file, file.name); // Include filename explicitly
-
-    const response = await fetch('/api/upload', {
-      method: 'POST',
-      body: formData,
-      // Add headers if needed (don't set Content-Type, let browser set it with boundary):
-      // headers: {
-      //   'Authorization': `Bearer ${token}`,
-      // },
+    const response = await fetch('http://localhost:5000/api/upload', {
+        method: 'POST',
+        body: formData,
     });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `Upload failed: ${response.statusText}`);
+    if(!response.ok){
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Upload failed: ' + response.statusText);
     }
 
+    // Parse and return the response data
     const data = await response.json();
     return data;
-    */
   };
 
-  const saveFileToStorage = (fileObj, result) => {
+  // API call function to get summary for a file
+  const getSummaryFromAPI = async (filename) => {
+    try {
+      console.log('Fetching summary for file:', filename);
+      
+      const response = await fetch(`http://localhost:5000/api/summary`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ filename: filename }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to get summary: ' + response.statusText);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error fetching summary:', error);
+      throw error;
+    }
+  };
+
+  const saveFileToStorage = (fileObj, uploadResult, summaryResult) => {
     // Get existing files from localStorage
     const existingFiles = JSON.parse(localStorage.getItem('uploadedFiles') || '[]');
+    
+    // Extract fileId from upload result
+    const fileId = uploadResult.fileId || uploadResult.id || Date.now().toString();
+    
+    // Extract summary from summary API response (under 'message' field), fallback to default if not provided
+    const summary = summaryResult?.message || summaryResult?.summary || summaryResult?.description || uploadResult?.summary || 
+      `This document has been successfully uploaded and processed. File details: ${fileObj.name} (${formatFileSize(fileObj.size)}). The document is now ready for querying and analysis.`;
     
     // Create file data object
     const fileData = {
@@ -138,9 +153,8 @@ const FileUpload = () => {
       uploadedAt: new Date().toISOString(),
       size: fileObj.size,
       status: 'processed',
-      // TODO: Replace with actual summary from API response
-      summary: `This document has been successfully uploaded and processed. File details: ${fileObj.name} (${formatFileSize(fileObj.size)}). The document is now ready for querying and analysis.`,
-      fileId: result.fileId || Date.now().toString(),
+      summary: summary,
+      fileId: fileId,
     };
     
     // Add to existing files
@@ -169,15 +183,24 @@ const FileUpload = () => {
       // Upload all files sequentially
       for (const fileObj of pendingFiles) {
         try {
-          // Call the API to upload the file
-          // TODO: Replace with actual API call when backend is ready
-          const result = await uploadFileToAPI(fileObj.file);
+          // Step 1: Call the API to upload the file
+          const uploadResult = await uploadFileToAPI(fileObj.file);
           
           // Handle successful upload
-          console.log('File uploaded successfully:', fileObj.name, result);
+          console.log('File uploaded successfully:', fileObj.name, uploadResult);
           
-          // Save file data to localStorage
-          saveFileToStorage(fileObj, result);
+          // Step 2: Call the summary API to get the summary for this file (using filename)
+          let summaryResult = null;
+          try {
+            summaryResult = await getSummaryFromAPI(fileObj.name);
+            console.log('Summary retrieved successfully for:', fileObj.name, summaryResult);
+          } catch (summaryError) {
+            console.warn('Failed to get summary for', fileObj.name, ':', summaryError);
+            // Continue even if summary fails - we'll use a default summary
+          }
+          
+          // Step 3: Save file data to localStorage (with summary if available)
+          saveFileToStorage(fileObj, uploadResult, summaryResult);
           
           setFiles(prev => prev.map(f => 
             f.id === fileObj.id ? { ...f, status: 'success' } : f
@@ -192,10 +215,10 @@ const FileUpload = () => {
         }
       }
       
-      // After all files are processed, navigate to home
+      // After all files are processed, navigate to files page
       // Small delay to show success state briefly
       await new Promise(resolve => setTimeout(resolve, 500));
-      navigate('/home');
+      navigate('/files');
     } catch (error) {
       console.error('Upload process error:', error);
       setIsProcessing(false);
