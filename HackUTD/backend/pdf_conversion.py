@@ -19,7 +19,7 @@ load_dotenv()
 
 client = OpenAI(
     base_url="https://integrate.api.nvidia.com/v1",
-    api_key="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"
+    api_key="NVIDIA-API_KEY"
 )
 
 # Paths
