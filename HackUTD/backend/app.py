@@ -1,6 +1,18 @@
+import subprocess
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 import os
+import whisper
+import io
+import numpy as np
+import tempfile
+import soundfile as sf
+
+# app.py
+from dotenv import load_dotenv
+load_dotenv()
+
+import pdf_conversion
 
 # app.py
 from dotenv import load_dotenv
@@ -16,6 +28,10 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 last_uploaded_folder = None
 last_image_paths = []
+
+print("Loading model")
+model = whisper.load_model("base")              # loads whisper model
+print("Model loaded")
 
 
 # ----------------------------
@@ -142,6 +158,50 @@ def query():
         "matched_folders": relevant_folders
     }), 200
 
+@app.route('/api/speech_to_text', methods=['POST'])
+def speech_to_text():
+    if "audio" not in request.files:
+        return jsonify({"error": "No audio file uploaded"}), 400
+
+    audio_file = request.files["audio"]
+
+    # Save in the current directory (backend folder)
+    save_path = os.path.join(os.getcwd(), "audio.wav")
+    audio_file.save(save_path)  # This writes the file
+
+    # # Read WAV into a NumPy array
+    # data, samplerate = sf.read(save_path)
+    # data = data.astype(np.float32)  # 🔑 Convert to float32 to avoid dtype mismatch
+
+    # load audio and pad/trim to fit 30 seconds
+    # audio = whisper.load_audio("audio.wav")
+    # audio = whisper.pad_or_trim(audio)
+
+    # # make log-Mel spectrogram and move to the same device as the model
+    # mel = whisper.log_mel_spectrogram(audio).to(model.device)
+
+    # # detect the spoken language
+    # _, probs = model.detect_language(mel)
+
+    # # decode the audio
+    # options = whisper.DecodingOptions()
+    # result = whisper.decode(model, mel, options)
+
+    # Transcribe using the file path
+    result = model.transcribe(
+        save_path,
+        language="en",
+        fp16=False
+    )
+
+    # Optionally delete after transcription
+    if os.path.exists(save_path):
+        os.remove(save_path)
+
+    # print the recognized text
+    print(result["text"])
+
+    return jsonify({"text": result["text"]})
 
 # ----------------------------
 # Run Flask App

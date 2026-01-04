@@ -1,5 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ReactMediaRecorder } from "react-media-recorder";
+import { FaCircleStop, FaMicrophone } from 'react-icons/fa6'
+import RecordRTC from "recordrtc";
 
 const Home = () => {
   const [messages, setMessages] = useState([]);
@@ -7,6 +10,13 @@ const Home = () => {
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
   const navigate = useNavigate();
+  const [isRecording, setIsRecording] = useState(false)
+  const [recordedURL, setRecordedURL] = useState('')
+  const [seconds, setSeconds] = useState(0)
+
+  const mediaStream = useRef(null)
+  const mediaRecorder = useRef(null)
+  const chunks = useRef([])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -98,6 +108,226 @@ const Home = () => {
       setIsLoading(false);
     }
   };
+
+  const sendTranscription = async (text) => {
+    if (!text.trim() || isLoading) return;
+
+    const userMessage = {
+      id: Date.now(),
+      type: 'user',
+      content: text,
+      timestamp: new Date(),
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    setInput('');
+    setIsLoading(true);
+
+    // --- Real API call to Flask /api/query ---
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
+    try {
+      const res = await fetch('http://localhost:5000/api/query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: text }),
+        signal: controller.signal,
+      });
+
+      if (!res.ok) {
+        let errMsg = `Request failed (${res.status})`;
+        try {
+          const err = await res.json();
+          if (err?.message) errMsg = err.message;
+        } catch {
+          /* ignore JSON parse errors */
+        }
+        throw new Error(errMsg);
+      }
+
+      // Expected backend shape per your app.py:
+      // {
+      //   success: true,
+      //   message: "Query processed successfully.",
+      //   query: "<echoed user query>",
+      //   response: "<model's text>",
+      //   matched_folders: ["folderA", "folderB"]
+      // }
+      const data = await res.json();
+
+      const aiMessage = {
+        id: Date.now() + 1,
+        type: 'ai',
+        content: data?.response || 'No response generated.',
+        timestamp: new Date(),
+        structuredData: {
+          matchedFolders: data?.matched_folders || [],
+          serverMessage: data?.message || null,
+          queryEcho: data?.query || null,
+        },
+        confidence: null,
+        evidence: data?.matched_folders?.map(f => ({ type: 'folder', value: f })) || null,
+      };
+
+      setMessages(prev => [...prev, aiMessage]);
+    } catch (error) {
+      console.error('Error sending message:', error);
+      const errorMessage = {
+        id: Date.now() + 1,
+        type: 'error',
+        content:
+          error.name === 'AbortError'
+            ? 'The request timed out. Please try again.'
+            : `Sorry, there was an error: ${error.message}`,
+        timestamp: new Date(),
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      clearTimeout(timeoutId);
+      setIsLoading(false);
+    }
+  };
+
+  async function uploadAudio(mediaBlob) {
+    try {
+      const formData = new FormData();
+      formData.append("audio", mediaBlob, "audio.wav");
+
+      const response = await fetch("http://localhost:5000/api/speech_to_text", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Server error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const text = data.text;
+
+      console.log(text);
+
+      sendTranscription(text);
+
+    }
+    catch (e) {
+      console.error("Error uploading recording:", e);
+    }
+  }
+
+  // const RecordView = () => (
+  //   <div>
+  //     <ReactMediaRecorder
+  //       audio
+  //       render={({ status, startRecording, stopRecording, mediaBlobUrl }) => (
+  //         <div>
+  //           <p>{status}</p>
+  //           <button onClick={startRecording}>Start Recording</button>
+  //           <button onClick={stopRecording}>Stop Recording</button>
+  //           <audio src={mediaBlobUrl} controls />
+  //           <button onClick={convertSpeechToText}>Submit</button>
+  //         </div>
+  //       )}
+  //     />
+  //   </div>
+  // );
+
+  // const startRecording = async() => {
+  //       setIsRecording(true)
+  //       try{
+  //           setSeconds(0)
+  //           const stream = await navigator.mediaDevices.getUserMedia({audio: true})
+  //           mediaStream.current = stream
+  //           mediaRecorder.current = new MediaRecorder(stream)
+  //           mediaRecorder.current.ondataavailable = (e) => {
+  //               if (e.data.size > 0){
+  //                   chunks.current.push(e.data)
+  //               }
+  //           }
+
+  //           mediaRecorder.current.onstop = () => {
+  //               const recordedBlob = new Blob(chunks.current,{type: 'audio/wav'})
+  //               const mimeType = mediaRecorder.current.mimeType;
+  //               console.log("Recording MIME type:", mimeType);
+  //               const url = URL.createObjectURL(recordedBlob)
+  //               setRecordedURL(url)
+  //               uploadAudio(recordedBlob)
+
+  //               chunks.current = []
+  //           }
+
+  //           mediaRecorder.current.start()
+
+  //       }catch(error){
+  //           console.log(error);
+  //       }
+
+
+  //   }
+
+  //   const stopRecording = () => {
+  //       setIsRecording(false)
+  //       if(mediaRecorder.current){
+  //           mediaRecorder.current.stop()
+  //           mediaStream.current.getTracks().forEach(track => track.stop())
+  //       }
+  //   }
+
+  const startRecording = async () => {
+    setIsRecording(true);
+    try {
+      setSeconds(0);
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStream.current = stream;
+
+      // Create RecordRTC instance
+      mediaRecorder.current = new RecordRTC(stream, {
+        type: 'audio',
+        mimeType: 'audio/wav',  // ✅ Ensures WAV format
+        recorderType: RecordRTC.StereoAudioRecorder,
+        numberOfAudioChannels: 1, // Mono for Whisper
+      });
+
+      // Start recording
+      mediaRecorder.current.startRecording();
+
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const stopRecording = async () => {
+    setIsRecording(false);
+    if (mediaRecorder.current) {
+      // Stop recording
+      mediaRecorder.current.stopRecording(() => {
+        const recordedBlob = mediaRecorder.current.getBlob(); // WAV Blob
+        const url = URL.createObjectURL(recordedBlob);
+        setRecordedURL(url);
+
+        // Upload the WAV blob
+        uploadAudio(recordedBlob);
+
+        // Clean up
+        mediaStream.current.getTracks().forEach(track => track.stop());
+        mediaRecorder.current = null;
+      });
+    }
+  };
+
+
+  const RecordView = () => (
+    <div>
+      {isRecording ? <button onClick={stopRecording} className='flex items-center justify-center text-[5px] bg-red-500 rounded-full p-4 text-white w-[50px] h-[50px]'>
+            <FaCircleStop size={20}/>
+        </button> : 
+            <button onClick={startRecording} className='flex items-center justify-center text-[5px] bg-blue-500 rounded-full p-4 text-white w-[50px] h-[50px]'>
+                <FaMicrophone size={20}/>
+            </button>
+        }
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-cbre-gray-light">
@@ -268,6 +498,9 @@ const Home = () => {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cbre-green focus:border-cbre-green resize-none overflow-y-auto"
                   style={{ minHeight: '44px', maxHeight: '120px' }}
                 />
+              </div>
+              <div>
+                <RecordView />
               </div>
               <button
                 type="submit"
